@@ -1136,7 +1136,7 @@ apiRouter.get("/api/v1/reports/dashboard", auth, requireRole("admin"), async (_r
     trend: trend.map((row) => ({ date: row._id, revenue: row.revenue, orders: row.orders })),
     topRepToday: topRep[0] ? { rep: { id: topRep[0]._id, name: topRep[0].rep.name, repCode: topRep[0].rep.repCode }, revenue: topRep[0].revenue } : null,
     lowStockCount,
-    recentCancelled,
+    recentCancelled: recentCancelled.map((order) => toApiObject(order)),
   }));
 });
 

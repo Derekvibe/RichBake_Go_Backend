@@ -13,7 +13,8 @@ export function auth(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace(/^Bearer /, "");
   if (!token) return res.status(401).json({ success: false, data: null, error: { code: "UNAUTHENTICATED", message: "Login required" } });
   try {
-    req.auth = jwt.verify(token, process.env.JWT_ACCESS_SECRET || "development-access-secret") as AuthUser;
+    if (!process.env.JWT_ACCESS_SECRET) throw new Error("JWT_ACCESS_SECRET is required");
+    req.auth = jwt.verify(token, process.env.JWT_ACCESS_SECRET) as AuthUser;
     next();
   } catch {
     res.status(401).json({ success: false, data: null, error: { code: "INVALID_TOKEN", message: "Token expired or invalid" } });

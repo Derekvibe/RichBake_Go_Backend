@@ -1,12 +1,19 @@
 import dotenv from "dotenv";
 import path from "node:path";
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+dotenv.config({
+  path: [
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(process.cwd(), "backend/.env"),
+  ].find((candidate) => require("node:fs").existsSync(candidate)),
+});
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { User } from "../models";
 
 async function seed() {
-  await mongoose.connect(process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/richbake");
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI is required");
+  await mongoose.connect(uri, { serverSelectionTimeoutMS: 30000 });
   const phone = process.env.ADMIN_PHONE || "08000000000";
   const password = process.env.ADMIN_PASSWORD || "Admin123!";
   const existing = await User.findOne({ phone });

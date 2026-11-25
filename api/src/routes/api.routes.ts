@@ -12,8 +12,14 @@ import { auth, requireRole, validateBody } from "../middleware/auth.middleware";
 export const apiRouter = express.Router();
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false });
-const accessSecret = () => process.env.JWT_ACCESS_SECRET || "development-access-secret";
-const refreshSecret = () => process.env.JWT_REFRESH_SECRET || "development-refresh-secret";
+const accessSecret = () => {
+  if (!process.env.JWT_ACCESS_SECRET) throw new Error("JWT_ACCESS_SECRET is required");
+  return process.env.JWT_ACCESS_SECRET;
+};
+const refreshSecret = () => {
+  if (!process.env.JWT_REFRESH_SECRET) throw new Error("JWT_REFRESH_SECRET is required");
+  return process.env.JWT_REFRESH_SECRET;
+};
 const envelope = (data: unknown) => ({ success: true, data, error: null });
 const productUpload = multer({
   storage: multer.memoryStorage(),

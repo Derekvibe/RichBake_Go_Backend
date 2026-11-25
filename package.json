@@ -1,0 +1,15 @@
+{
+  "name": "richbake-backend",
+  "private": true,
+  "workspaces": [
+    "api",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @richbake/api",
+    "build": "npm run build -w @richbake/shared && npm run build -w @richbake/api",
+    "start": "npm run start -w @richbake/api",
+    "seed": "npm run seed -w @richbake/api",
+    "test": "npm run test -w @richbake/api"
+  }
+}

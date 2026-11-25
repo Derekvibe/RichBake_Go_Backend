@@ -10,7 +10,7 @@ dotenv.config({
 import mongoose from "mongoose";
 import { app } from "./app";
 
-const port = Number(process.env.API_PORT || 4000);
+const port = Number(process.env.PORT || process.env.API_PORT || 4000);
 
 async function start() {
   const uri = process.env.MONGODB_URI;
@@ -24,7 +24,9 @@ async function start() {
     console.error("MongoDB connection error", error);
   });
 
-  app.listen(port, () => console.log(`RichBake API listening on ${port}`));
+  app.listen(port, "0.0.0.0", () =>
+    console.log(`RichBake API listening on ${port}`),
+  );
 }
 
 start().catch((error: unknown) => {

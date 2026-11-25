@@ -27,7 +27,13 @@ async function start() {
   app.listen(port, () => console.log(`RichBake API listening on ${port}`));
 }
 
-start().catch((error) => {
-  console.error(error);
+start().catch((error: unknown) => {
+  if (error instanceof Error && error.name === "MongooseServerSelectionError") {
+    console.error(
+      "MongoDB Atlas connection failed. Verify MONGODB_URI, database credentials, cluster status, and the Atlas Network Access allowlist.",
+    );
+  } else {
+    console.error(error);
+  }
   process.exit(1);
 });

@@ -2,6 +2,11 @@ import mongoose, { Schema } from "mongoose";
 
 const timestamps = { timestamps: true };
 
+export const Counter = mongoose.model("Counter", new Schema({
+  key: { type: String, required: true, unique: true },
+  sequence: { type: Number, required: true, default: 0 },
+}, timestamps));
+
 export const User = mongoose.model("User", new Schema({
   role: { type: String, enum: ["admin", "rep"], required: true },
   name: { type: String, required: true },
@@ -15,6 +20,8 @@ export const User = mongoose.model("User", new Schema({
   mustChangePassword: { type: Boolean, default: true },
   pushTokens: { type: [String], default: [] },
   refreshTokenHash: String,
+  refreshTokenVersion: { type: Number, default: 0 },
+  refreshTokenSessionId: String,
   notificationPrefs: { type: Map, of: Boolean, default: {} },
 }, timestamps));
 
@@ -27,6 +34,7 @@ export const Product = mongoose.model("Product", new Schema({
   lowStockThreshold: { type: Number, default: 10, min: 0 },
   isActive: { type: Boolean, default: true },
 }, timestamps));
+Product.schema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
 
 export const RepStock = mongoose.model("RepStock", new Schema({
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -36,6 +44,7 @@ export const RepStock = mongoose.model("RepStock", new Schema({
 RepStock.schema.index({ repId: 1, productId: 1 }, { unique: true });
 
 export const Customer = mongoose.model("Customer", new Schema({
+  clientId: { type: String, sparse: true },
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   name: { type: String, required: true },
   phone: { type: String, required: true },
@@ -45,10 +54,11 @@ export const Customer = mongoose.model("Customer", new Schema({
   lastOrderAt: Date,
 }, timestamps));
 Customer.schema.index({ repId: 1, phone: 1 }, { unique: true });
+Customer.schema.index({ repId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $exists: true } } });
 
 export const Order = mongoose.model("Order", new Schema({
   orderNo: { type: String, required: true, unique: true },
-  clientId: { type: String, required: true, unique: true },
+  clientId: { type: String, required: true },
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   customerId: { type: Schema.Types.ObjectId, ref: "Customer", required: true },
   items: [{
@@ -66,8 +76,10 @@ export const Order = mongoose.model("Order", new Schema({
   cancelledAt: Date,
   cancelReason: String,
   cancelledBy: Schema.Types.ObjectId,
-  receiptNo: { type: String, unique: true, required: true },
+  receiptNo: { type: String, required: true },
 }, timestamps));
+Order.schema.index({ clientId: 1 }, { unique: true });
+Order.schema.index({ receiptNo: 1 }, { unique: true });
 
 export const StockMovement = mongoose.model("StockMovement", new Schema({
   type: { type: String, enum: ["RESTOCK", "ISSUE_TO_REP", "SALE", "CANCEL_RETURN", "RETURN_TO_WAREHOUSE", "ADJUSTMENT"], required: true },
@@ -81,6 +93,7 @@ export const StockMovement = mongoose.model("StockMovement", new Schema({
 
 export const ReceiptBook = mongoose.model("ReceiptBook", new Schema({
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
+  prefix: { type: String, default: "" },
   startNo: { type: Number, required: true },
   endNo: { type: Number, required: true },
   nextNo: { type: Number, required: true },
@@ -98,5 +111,16 @@ export const Notification = mongoose.model("Notification", new Schema({
   body: { type: String, required: true },
   linkType: String,
   linkId: String,
+  data: { type: Schema.Types.Mixed, default: {} },
   readAt: Date,
+}, timestamps));
+
+export const JobRun = mongoose.model("JobRun", new Schema({
+  key: { type: String, required: true, unique: true },
+  completedAt: { type: Date, required: true, default: Date.now },
+}, timestamps));
+
+export const AlertState = mongoose.model("AlertState", new Schema({
+  key: { type: String, required: true, unique: true },
+  lastSentAt: { type: Date, required: true, default: Date.now },
 }, timestamps));

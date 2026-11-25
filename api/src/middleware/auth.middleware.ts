@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { ZodSchema } from "zod";
+import { User } from "../models";
 
 export type AuthUser = { id: string; role: "admin" | "rep"; name: string };
 declare global {
@@ -9,12 +10,16 @@ declare global {
   }
 }
 
-export function auth(req: Request, res: Response, next: NextFunction) {
+export async function auth(req: Request, res: Response, next: NextFunction) {
   const token = req.headers.authorization?.replace(/^Bearer /, "");
   if (!token) return res.status(401).json({ success: false, data: null, error: { code: "UNAUTHENTICATED", message: "Login required" } });
   try {
     if (!process.env.JWT_ACCESS_SECRET) throw new Error("JWT_ACCESS_SECRET is required");
     req.auth = jwt.verify(token, process.env.JWT_ACCESS_SECRET) as AuthUser;
+    const user = await User.findById(req.auth.id).select("_id role name isActive").lean();
+    if (!user || !user.isActive) {
+      return res.status(403).json({ success: false, data: null, error: { code: "ACCOUNT_INACTIVE", message: "Account is inactive" } });
+    }
     next();
   } catch {
     res.status(401).json({ success: false, data: null, error: { code: "INVALID_TOKEN", message: "Token expired or invalid" } });

@@ -11,5 +11,11 @@
     "start": "npm run start -w @richbake/api",
     "seed": "npm run seed -w @richbake/api",
     "test": "npm run test -w @richbake/api"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/supertest": "^7.2.1",
+    "mongodb-memory-server": "^11.4.0",
+    "ts-jest": "^29.4.15"
   }
 }

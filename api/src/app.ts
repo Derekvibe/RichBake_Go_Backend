@@ -9,8 +9,29 @@ app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(",") || true }));
 app.use(express.json({ limit: "1mb" }));
 
+app.get("/", (_req, res) =>
+  res.json({
+    success: true,
+    data: {
+      name: "RichBake API",
+      status: "ok",
+      health: "/health",
+      api: "/api/v1",
+    },
+    error: null,
+  }),
+);
+
 app.get("/health", (_req, res) =>
-  res.json({ success: true, data: { status: "ok" }, error: null }),
+  res.json({
+    success: true,
+    data: {
+      status: "ok",
+      uptime: process.uptime(),
+      db: "connected",
+      version: process.env.npm_package_version || "1.0.0",
+    },
+  }),
 );
 
 app.use(apiRouter);

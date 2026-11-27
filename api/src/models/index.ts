@@ -25,7 +25,7 @@ export const User = mongoose.model("User", new Schema({
   notificationPrefs: { type: Map, of: Boolean, default: {} },
 }, timestamps));
 
-export const Product = mongoose.model("Product", new Schema({
+const productSchema = new Schema({
   name: { type: String, required: true },
   unitPrice: { type: Number, required: true, min: 0 },
   imageUrl: String,
@@ -33,18 +33,20 @@ export const Product = mongoose.model("Product", new Schema({
   warehouseStock: { type: Number, default: 0, min: 0 },
   lowStockThreshold: { type: Number, default: 10, min: 0 },
   isActive: { type: Boolean, default: true },
-}, timestamps));
-Product.schema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+}, timestamps);
+productSchema.index({ name: 1 }, { unique: true, collation: { locale: "en", strength: 2 } });
+export const Product = mongoose.model("Product", productSchema);
 
-export const RepStock = mongoose.model("RepStock", new Schema({
+const repStockSchema = new Schema({
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
   quantity: { type: Number, required: true, min: 0 },
-}, timestamps));
-RepStock.schema.index({ repId: 1, productId: 1 }, { unique: true });
+}, timestamps);
+repStockSchema.index({ repId: 1, productId: 1 }, { unique: true });
+export const RepStock = mongoose.model("RepStock", repStockSchema);
 
-export const Customer = mongoose.model("Customer", new Schema({
-  clientId: { type: String, sparse: true },
+const customerSchema = new Schema({
+  clientId: String,
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   name: { type: String, required: true },
   phone: { type: String, required: true },
@@ -52,11 +54,12 @@ export const Customer = mongoose.model("Customer", new Schema({
   orderCount: { type: Number, default: 0 },
   totalSpent: { type: Number, default: 0 },
   lastOrderAt: Date,
-}, timestamps));
-Customer.schema.index({ repId: 1, phone: 1 }, { unique: true });
-Customer.schema.index({ repId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $exists: true } } });
+}, timestamps);
+customerSchema.index({ repId: 1, phone: 1 }, { unique: true });
+customerSchema.index({ repId: 1, clientId: 1 }, { unique: true, partialFilterExpression: { clientId: { $exists: true } } });
+export const Customer = mongoose.model("Customer", customerSchema);
 
-export const Order = mongoose.model("Order", new Schema({
+const orderSchema = new Schema({
   orderNo: { type: String, required: true, unique: true },
   clientId: { type: String, required: true },
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
@@ -77,9 +80,10 @@ export const Order = mongoose.model("Order", new Schema({
   cancelReason: String,
   cancelledBy: Schema.Types.ObjectId,
   receiptNo: { type: String, required: true },
-}, timestamps));
-Order.schema.index({ clientId: 1 }, { unique: true });
-Order.schema.index({ receiptNo: 1 }, { unique: true });
+}, timestamps);
+orderSchema.index({ clientId: 1 }, { unique: true });
+orderSchema.index({ receiptNo: 1 }, { unique: true });
+export const Order = mongoose.model("Order", orderSchema);
 
 export const StockMovement = mongoose.model("StockMovement", new Schema({
   type: { type: String, enum: ["RESTOCK", "ISSUE_TO_REP", "SALE", "CANCEL_RETURN", "RETURN_TO_WAREHOUSE", "ADJUSTMENT"], required: true },
@@ -91,7 +95,7 @@ export const StockMovement = mongoose.model("StockMovement", new Schema({
   note: String,
 }, timestamps));
 
-export const ReceiptBook = mongoose.model("ReceiptBook", new Schema({
+const receiptBookSchema = new Schema({
   repId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   prefix: { type: String, default: "" },
   startNo: { type: Number, required: true },
@@ -101,10 +105,11 @@ export const ReceiptBook = mongoose.model("ReceiptBook", new Schema({
   assignedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
   assignedAt: { type: Date, default: Date.now },
   voidReason: String,
-}, timestamps));
-ReceiptBook.schema.index({ repId: 1, status: 1 });
+}, timestamps);
+receiptBookSchema.index({ repId: 1, status: 1 });
+export const ReceiptBook = mongoose.model("ReceiptBook", receiptBookSchema);
 
-export const Notification = mongoose.model("Notification", new Schema({
+const notificationSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   type: { type: String, required: true },
   title: { type: String, required: true },
@@ -113,7 +118,9 @@ export const Notification = mongoose.model("Notification", new Schema({
   linkId: String,
   data: { type: Schema.Types.Mixed, default: {} },
   readAt: Date,
-}, timestamps));
+}, timestamps);
+notificationSchema.index({ userId: 1, createdAt: -1 });
+export const Notification = mongoose.model("Notification", notificationSchema);
 
 export const JobRun = mongoose.model("JobRun", new Schema({
   key: { type: String, required: true, unique: true },

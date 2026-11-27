@@ -1,41 +1,41 @@
-import dotenv from "dotenv";
-import path from "node:path";
-dotenv.config({
-  path: [
-    path.resolve(process.cwd(), ".env"),
-    path.resolve(process.cwd(), "backend/.env"),
-    path.resolve(__dirname, "../../.env"),
-  ].find((candidate) => require("node:fs").existsSync(candidate)),
-});
+import "./config/load-env";
 import mongoose from "mongoose";
 import { app } from "./app";
-
-const port = Number(process.env.PORT || process.env.API_PORT || 4000);
+import { env, validateEnvironment } from "./config/env";
+import { startScheduler } from "./jobs/scheduler";
+import { logger } from "./utils/logger";
 
 async function start() {
-  const uri = process.env.MONGODB_URI;
-  if (!uri) throw new Error("MONGODB_URI is required");
+  validateEnvironment((message) => logger.warn(message));
+  await mongoose.connect(env.mongoUri(), { serverSelectionTimeoutMS: 30000 });
+  mongoose.connection.on("error", (error) => logger.error({ err: error }, "MongoDB connection error"));
+  mongoose.connection.on("disconnected", () => logger.warn("MongoDB disconnected"));
 
-  await mongoose.connect(uri, {
-    serverSelectionTimeoutMS: 30000,
-  });
+  const server = app.listen(env.port(), "0.0.0.0", () => logger.info({ port: env.port() }, "RichBake API listening"));
+  const tasks = startScheduler();
 
-  mongoose.connection.on("error", (error) => {
-    console.error("MongoDB connection error", error);
-  });
-
-  app.listen(port, "0.0.0.0", () =>
-    console.log(`RichBake API listening on ${port}`),
-  );
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, "Shutting down");
+    tasks.forEach((task) => task.stop());
+    server.close(() => {
+      mongoose.disconnect().finally(() => process.exit(0));
+    });
+    setTimeout(() => process.exit(1), 10_000).unref();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
+
+process.on("unhandledRejection", (reason) => logger.error({ err: reason }, "Unhandled promise rejection"));
 
 start().catch((error: unknown) => {
   if (error instanceof Error && error.name === "MongooseServerSelectionError") {
-    console.error(
-      "MongoDB Atlas connection failed. Verify MONGODB_URI, database credentials, cluster status, and the Atlas Network Access allowlist.",
-    );
+    logger.fatal("MongoDB Atlas connection failed. Verify MONGODB_URI, database credentials, cluster status, and the Atlas Network Access allowlist.");
   } else {
-    console.error(error);
+    logger.fatal({ err: error }, "Failed to start");
   }
   process.exit(1);
 });

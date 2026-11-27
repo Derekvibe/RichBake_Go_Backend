@@ -4,7 +4,7 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import request from "supertest";
 import { app } from "./app";
 import { Order, RepStock } from "./models";
-import { pushHooks } from "./routes/api.routes";
+import { pushHooks } from "./services/push.service";
 import { seedBase } from "./test-support";
 import { jest } from "@jest/globals";
 
@@ -21,7 +21,8 @@ describe("report contracts", () => {
     const lagosParts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Lagos", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
     const part = (type: string) => lagosParts.find((item) => item.type === type)?.value || "";
     const todayUtc = new Date(Date.UTC(Number(part("year")), Number(part("month")) - 1, Number(part("day"))));
-    const yesterday = new Date(todayUtc.getTime() - 86400000);
+    // Two days back so the 00:30 order is never in the future, whatever time the suite runs.
+    const yesterday = new Date(todayUtc.getTime() - 2 * 86400000);
     const d = yesterday.toISOString().slice(0, 10);
     const dPlusOne = new Date(yesterday.getTime() + 86400000).toISOString().slice(0, 10);
     await request(app).post("/api/v1/orders").set("Authorization", `Bearer ${context.repToken}`).send({ clientId: "00000000-0000-4000-8000-000000000301", customerId: context.customer._id.toString(), items: [{ productId: context.product._id.toString(), quantity: 1 }], placedAt: `${d}T22:30:00.000Z` }).expect(201);

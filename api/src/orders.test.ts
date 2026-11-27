@@ -7,7 +7,7 @@ import jwt from "jsonwebtoken";
 import { MongoServerError } from "mongodb";
 import { app } from "./app";
 import { Customer, Order, RepStock, StockMovement, ReceiptBook, User } from "./models";
-import { pushHooks } from "./routes/api.routes";
+import { pushHooks } from "./services/push.service";
 import { seedBase } from "./test-support";
 
 describe("order contracts", () => {
@@ -95,7 +95,7 @@ describe("order contracts", () => {
   });
 
   test("two reps get separate order sequences starting at 0001", async () => {
-    const second = await User.create({ role: "rep", name: "Second Rep", phone: "08055555555", repCode: "R002", passwordHash: await bcrypt.hash("Password123", 12), isActive: true });
+    const second = await User.create({ role: "rep", name: "Second Rep", phone: "08055555555", repCode: "R002", passwordHash: await bcrypt.hash("Password123", 12), isActive: true, mustChangePassword: false });
     const secondCustomer = await Customer.create({ repId: second._id, name: "Second Customer", phone: "08077777777", address: "Second address" });
     await RepStock.create({ repId: context.rep._id, productId: context.product._id, quantity: 5 });
     await RepStock.create({ repId: second._id, productId: context.product._id, quantity: 5 });

@@ -1,12 +1,4 @@
-import dotenv from "dotenv";
-import path from "node:path";
-dotenv.config({
-  path: [
-    path.resolve(process.cwd(), ".env"),
-    path.resolve(process.cwd(), "backend/.env"),
-    path.resolve(__dirname, "../../../.env"),
-  ].find((candidate) => require("node:fs").existsSync(candidate)),
-});
+import "../config/load-env";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { User } from "../models";

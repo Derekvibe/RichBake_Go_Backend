@@ -1,43 +1,52 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { ZodSchema } from "zod";
+import { env } from "../config/env";
 import { User } from "../models";
+import { sendError } from "../utils/http";
 
-export type AuthUser = { id: string; role: "admin" | "rep"; name: string };
+export type Role = "admin" | "rep";
+export type AuthUser = { id: string; role: Role; name: string };
+
 declare global {
   namespace Express {
     interface Request { auth?: AuthUser }
   }
 }
 
-export async function auth(req: Request, res: Response, next: NextFunction) {
-  const token = req.headers.authorization?.replace(/^Bearer /, "");
-  if (!token) return res.status(401).json({ success: false, data: null, error: { code: "UNAUTHENTICATED", message: "Login required" } });
+async function authenticate(req: Request, res: Response, next: NextFunction, allowPendingPasswordChange: boolean) {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
+  if (!token) return sendError(res, 401, "UNAUTHENTICATED", "Login required");
+  let payload: { id?: unknown };
   try {
-    if (!process.env.JWT_ACCESS_SECRET) throw new Error("JWT_ACCESS_SECRET is required");
-    req.auth = jwt.verify(token, process.env.JWT_ACCESS_SECRET) as AuthUser;
-    const user = await User.findById(req.auth.id).select("_id role name isActive").lean();
-    if (!user || !user.isActive) {
-      return res.status(403).json({ success: false, data: null, error: { code: "ACCOUNT_INACTIVE", message: "Account is inactive" } });
-    }
-    next();
+    payload = jwt.verify(token, env.jwtAccessSecret(), { algorithms: ["HS256"] }) as { id?: unknown };
   } catch {
-    res.status(401).json({ success: false, data: null, error: { code: "INVALID_TOKEN", message: "Token expired or invalid" } });
+    return sendError(res, 401, "INVALID_TOKEN", "Token expired or invalid");
   }
+  if (typeof payload.id !== "string") return sendError(res, 401, "INVALID_TOKEN", "Token expired or invalid");
+  const user = await User.findById(payload.id).select("_id role name isActive mustChangePassword").lean();
+  if (!user || !user.isActive) return sendError(res, 403, "ACCOUNT_INACTIVE", "Account is inactive");
+  if (user.mustChangePassword && !allowPendingPasswordChange) {
+    return sendError(res, 403, "PASSWORD_CHANGE_REQUIRED", "Change your password to continue");
+  }
+  // Role and name come from the database so a stale token can never carry outdated privileges.
+  req.auth = { id: user._id.toString(), role: user.role as Role, name: user.name };
+  next();
 }
 
-export function requireRole(role: "admin" | "rep") {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (req.auth?.role !== role) return res.status(403).json({ success: false, data: null, error: { code: "FORBIDDEN", message: "Insufficient role" } });
-    next();
-  };
+/** Requires a valid access token for an active user who has completed any required password change. */
+export function auth(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, false);
 }
 
-export function validateBody(schema: ZodSchema) {
+/** Like `auth`, but also admits users who still have to change their temporary password. */
+export function authSelf(req: Request, res: Response, next: NextFunction) {
+  return authenticate(req, res, next, true);
+}
+
+export function requireRole(role: Role) {
   return (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.body);
-    if (!result.success) return res.status(400).json({ success: false, data: null, error: { code: "VALIDATION_ERROR", message: "Invalid request", details: result.error.flatten() } });
-    req.body = result.data;
+    if (req.auth?.role !== role) return sendError(res, 403, "FORBIDDEN", "Insufficient role");
     next();
   };
 }
